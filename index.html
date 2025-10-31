@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>A Bad Map — Map Cartography Anarchy</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-sA+e2t3y3wYf9v1Ygq0s3QITbXw1w4h6kQf+1h3r0u8=" crossorigin="" />
+  <style>
+    html,body{height:100%;margin:0;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial;color:#111}
+    #map{height:100vh;width:100vw;transition:transform 0.6s ease;}
+
+    /* Intentionally chaotic UI */
+    .legend{position: absolute; left: 12px; top: 12px; background: rgba(255,255,255,0.9); padding:10px; border-radius:8px; box-shadow: 2px 2px 6px rgba(0,0,0,0.25)}
+    .legend h3{margin:0 0 6px 0;font-size:14px}
+    .legend .item{display:flex;align-items:center;margin:6px 0}
+    .swatch{width:22px;height:12px;margin-right:8px;border:1px solid #222}
+
+    /* Wrong north arrow */
+    .north{position:absolute; right:12px; top:12px; font-weight:700; transform: rotate(180deg);}
+    .north img{width:64px;height:64px;display:block;}
+
+    /* Fake scale box */
+    .scalebox{position:absolute; left:12px; bottom:12px; padding:8px;background:rgba(255,255,255,0.9);border-radius:6px}
+
+    /* Random noisy annotations */
+    .annotation{position:absolute;pointer-events:none;font-weight:700;text-shadow:1px 1px 0 rgba(255,255,255,0.6)}
+
+    /* Buttons */
+    .controls{position:absolute; right:12px; bottom:12px; display:flex; gap:8px}
+    .controls button{padding:8px 10px;border-radius:6px;border:2px solid #222;background:#fff;cursor:pointer}
+
+    /* Make tiles look garish by applying filters to the tile container */
+    .tile-filters{filter: hue-rotate(200deg) saturate(200%) contrast(120%) invert(5%);}
+
+    /* Extra badness: purposely mis-scale map container when toggled */
+    .pancake { transform: scaleY(0.35) scaleX(1.4) rotate(12deg); }
+
+    /* Absolutely horrible typography placements for labels */
+    .lbl1{left:40%;top:20%;transform:rotate(-45deg);color:#ff00ff}
+    .lbl2{left:15%;top:60%;transform:rotate(25deg);color:#00ff00}
+    .lbl3{left:75%;top:70%;transform:rotate(75deg);color:#ff7f00}
+
+    /* Make markers ugly */
+    .bad-marker{background:linear-gradient(45deg,#ff00ff,#00ffff);border:3px solid #000;border-radius:50%;width:18px;height:18px;box-shadow:0 0 6px rgba(0,0,0,0.6)}
+  </style>
+</head>
+<body>
+
+<div id="map" class="tile-filters"></div>
+
+<div class="legend" aria-hidden>
+  <h3>A Bad Map</h3>
+  <div><em>Today I break every rule.</em></div>
+  <hr />
+  <div class="item"><div class="swatch" style="background:#00FFFF"></div><div>Blue = Desert</div></div>
+  <div class="item"><div class="swatch" style="background:#00FF00"></div><div>Green = Ocean</div></div>
+  <div class="item"><div class="swatch" style="background:#FF00FF"></div><div>Magenta = Mountains</div></div>
+</div>
+
+<div class="north">
+  <div style="text-align:center;color:#c00">Definitely North</div>
+  <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><polygon points='12,2 22,22 12,17 2,22' fill='%23ff0000' stroke='%23000000' stroke-width='1'/></svg>" alt="north"/>
+</div>
+
+<div class="scalebox">Scale: <strong>1 cm = 3 light years</strong></div>
+
+<div class="controls">
+  <button id="chaos">Randomize Chaos</button>
+  <button id="pancake">Pancake Projection</button>
+  <button id="swap">Swap Oceans</button>
+</div>
+
+<!-- Ridiculous static annotations placed by absolute position -->
+<div class="annotation lbl1">Pacific Ocean (maybe)</div>
+<div class="annotation lbl2">Greenland (definitely a forest)</div>
+<div class="annotation lbl3">Antarctica (Lagos edition)</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-o9N1j8pG+QJb0jz1oHfdw8gkG6kA9gq+X6xkGg2yEwA=" crossorigin=""></script>
+<script>
+  // Create a normal Leaflet map (then we will intentionally break it)
+  const map = L.map('map', {
+    center: [6.5244, 3.3792], // Lagos-ish starting point to offend geography
+    zoom: 2,
+    zoomControl: false,
+    attributionControl: false
+  });
+
+  // Typical OpenStreetMap tiles — we'll abuse them visually
+  const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19
+  }).addTo(map);
+
+  // Ugly custom marker
+  const uglyIcon = L.divIcon({ className: 'bad-marker', iconSize: [18,18] });
+  L.marker([6.5244, 3.3792], {icon: uglyIcon}).addTo(map).bindPopup('Lagos — now on Antarctica');
+
+  // Add a huge semi-opaque rectangle labelled "Antarctica" and place it over West Africa
+  const antarcticRect = L.rectangle([[4,-10],[10,5]], {color:'#ff0000', weight:2, fillOpacity:0.35}).addTo(map);
+  antarcticRect.bindPopup('Antarctica (relocated)');
+
+  // Add intentionally wrong scale control (DOM element) and mislabel it
+  const fakeScale = L.control({position:'bottomleft'});
+  fakeScale.onAdd = function(){
+    const el = L.DomUtil.create('div','fake-scale');
+    el.innerHTML = '<div style="padding:6px;background:rgba(255,255,255,0.8);border-radius:4px;">Scale bar: 1 cm = 3 light years</div>';
+    return el;
+  }
+  fakeScale.addTo(map);
+
+  // Function to randomize tile filters and chaos annotations
+  function randomizeChaos(){
+    const mapEl = document.getElementById('map');
+    // Random hue-rotate between 0 and 360, random saturation multiplier
+    const hue = Math.floor(Math.random()*360);
+    const sat = 100 + Math.floor(Math.random()*300);
+    const contrast = 80 + Math.floor(Math.random()*80);
+    const invert = Math.random()>0.7?1:0;
+    mapEl.style.filter = `hue-rotate(${hue}deg) saturate(${sat}%) contrast(${contrast}%) invert(${invert})`;
+
+    // Move annotations randomly
+    document.querySelector('.lbl1').style.left = (5 + Math.random()*80) + '%';
+    document.querySelector('.lbl1').style.top = (5 + Math.random()*80) + '%';
+    document.querySelector('.lbl2').style.left = (5 + Math.random()*80) + '%';
+    document.querySelector('.lbl2').style.top = (5 + Math.random()*80) + '%';
+    document.querySelector('.lbl3').style.left = (5 + Math.random()*80) + '%';
+    document.querySelector('.lbl3').style.top = (5 + Math.random()*80) + '%';
+
+    // Add random misleading popup near center
+    const lat = -80 + Math.random()*160; // anywhere on globe
+    const lng = -180 + Math.random()*360;
+    L.circle([lat,lng], {radius: 200000, color: '#'+Math.floor(Math.random()*16777215).toString(16), fillOpacity:0.2}).addTo(map).bindPopup('Mystery feature (not verified)').openPopup();
+  }
+
+  document.getElementById('chaos').addEventListener('click', randomizeChaos);
+
+  // Pancake projection effect toggles a CSS transform that squashes the map (visually horrific)
+  document.getElementById('pancake').addEventListener('click', function(){
+    const m = document.getElementById('map');
+    m.classList.toggle('pancake');
+  });
+
+  // Swap oceans: overlay a clipped image of land over oceans (fake) — here we just invert colors on tiles
+  let swapped = false;
+  document.getElementById('swap').addEventListener('click', function(){
+    const m = document.getElementById('map');
+    swapped = !swapped;
+    if(swapped){
+      m.style.filter = 'invert(80%) hue-rotate(120deg) saturate(300%)';
+    } else {
+      m.style.filter = '';
+    }
+  });
+
+  // Make north arrow point south by rotating the north element (already rotated in CSS)
+  // Add intentionally wrong attribution
+  L.control.attribution({position:'topright'}).addAttribution('Map data &copy; Imaginary Cartographers').addTo(map);
+
+  // Hide real zoom control (we disabled it) and add a fake one with nonsense labels
+  const fakeZoom = L.control({position:'topright'});
+  fakeZoom.onAdd = function(){
+    const el = L.DomUtil.create('div','fake-zoom');
+    el.innerHTML = `<div style="background:rgba(255,255,255,0.85);padding:6px;border-radius:6px;">Zoom: Cosmic</div>`;
+    return el;
+  }
+  fakeZoom.addTo(map);
+
+  // Drop a few intentionally wrong labels as map markers (rotated text)
+  const weirdLabel = L.marker([51.5,-0.1], {icon: L.divIcon({className:'weird', html: '<div style="transform:rotate(45deg);font-weight:900;color:#ff00ff">London (Sahara)</div>'})}).addTo(map);
+
+  // Seed with a bit of chaos on load
+  setTimeout(randomizeChaos, 500);
+
+</script>
+</body>
+</html>
